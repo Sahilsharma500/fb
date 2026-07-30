@@ -54,6 +54,15 @@ const ExamInterface = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showSectionSubmitModal, setShowSectionSubmitModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null); // { message: string, type: 'info' | 'error' | 'success' }
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    // Automatically clear after 4 seconds
+    setTimeout(() => {
+      setToast(prev => prev && prev.message === message ? null : prev);
+    }, 4000);
+  };
   
   const timerRef = useRef(null);
   const breakTimerRef = useRef(null);
@@ -85,8 +94,8 @@ const ExamInterface = () => {
         setUserAnswers(initialAnswers);
       } catch (err) {
         console.error(err);
-        alert('Failed to load quiz');
-        navigate('/quizzes');
+        showToast('Failed to load quiz. Redirecting...', 'error');
+        setTimeout(() => navigate('/quizzes'), 2500);
       } finally {
         setLoading(false);
       }
@@ -189,192 +198,21 @@ const ExamInterface = () => {
     }
   }, [activeIdx, userAnswers, examStarted, activeSectionName]);
 
-  if (loading || !quiz) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
-        <div className="text-center space-y-3">
-          <Loader className="animate-spin text-brand-400 mx-auto" size={36} />
-          <p className="text-sm font-semibold">Configuring CBT Console...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 1. Pre-exam profile choice screen
-  if (!examStarted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 transition-colors duration-200">
-        <div className="absolute top-1/4 left-1/4 h-[300px] w-[300px] rounded-full bg-brand-500/10 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 h-[350px] w-[350px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-
-        <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-slate-200/50 dark:bg-slate-900 dark:border-slate-800/50">
-          <div className="text-center mb-6">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/20">
-              <Accessibility size={28} />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">CGL CBT Examination Settings</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Select your profile category to configure exam timers</p>
-          </div>
-
-          <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 mb-6 text-xs text-slate-600 dark:text-slate-400 space-y-3">
-            <h3 className="font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">⏳ Timing & Sectional Rules</h3>
-            <ul className="list-disc pl-5 space-y-1.5 leading-relaxed font-medium">
-              <li><strong>Pick Any Section</strong>: You can start with any section of your choice.</li>
-              <li><strong>Sectional Timer</strong>: Once you start a section, you must finish it (15 mins Regular / 20 mins Scribe) before you can start another. You cannot go back to submitted sections.</li>
-              <li><strong>5-Minute Break</strong>: There is a maximum break of 5 minutes between sections. You can skip the break early by starting your next section of choice.</li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <button
-              onClick={() => handleStartExam(false)}
-              className="flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/20 hover:scale-[1.01] transition-all text-center space-y-2 group"
-            >
-              <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-brand-500">Regular Candidate</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">15 minutes per section</p>
-              <span className="text-2xs font-extrabold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-700">
-                Total: 60 mins (Excl. Breaks)
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleStartExam(true)}
-              className="flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/20 hover:scale-[1.01] transition-all text-center space-y-2 group"
-            >
-              <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-brand-500">Scribe Candidate</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">20 minutes per section (PwD)</p>
-              <span className="text-2xs font-extrabold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-700">
-                Total: 80 mins (Excl. Breaks)
-              </span>
-            </button>
-          </div>
-
-          <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800/80 pt-4">
-            <span className="text-xs text-slate-400">Quiz: {quiz.quizName}</span>
-            <button
-              onClick={() => navigate('/quizzes')}
-              className="text-xs font-semibold text-slate-500 hover:underline"
-            >
-              Cancel and Return
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. Section selection / Break state screen
-  if (examStarted && !activeSectionName) {
-    const uncompleted = sectionsList.filter(name => !completedSections.includes(name));
-    
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 transition-colors duration-200">
-        <div className="absolute top-1/4 left-1/4 h-[300px] w-[300px] rounded-full bg-brand-500/10 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 h-[350px] w-[350px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-
-        <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-slate-200/50 dark:bg-slate-900 dark:border-slate-800/50">
-          <div className="text-center mb-6">
-            {completedSections.length > 0 ? (
-              <>
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
-                  <Coffee size={28} />
-                </div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transition Break</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Section completed. Take a break or select your next subject.
-                </p>
-                <div className="mt-3 inline-flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/20 px-4 py-2 border border-yellow-100 dark:border-yellow-900/30 rounded-xl text-yellow-600 dark:text-yellow-400 font-mono font-bold text-sm">
-                  <span>Break Time Left: {formatTime(breakTimeLeft)}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/20">
-                  <Play size={28} fill="white" className="ml-1" />
-                </div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Begin Mock Test</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Select whichever subject you want to attempt first</p>
-              </>
-            )}
-          </div>
-
-          {/* Section selections */}
-          <div className="space-y-3 mb-6">
-            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Subject Selection</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {sectionsList.map((secName) => {
-                const isDone = completedSections.includes(secName);
-                const questionCount = quiz.questions.filter(q => q.section === secName).length;
-                if (questionCount === 0) return null;
-
-                return (
-                  <div
-                    key={secName}
-                    className={`flex items-center justify-between border rounded-2xl p-4 transition-all ${
-                      isDone
-                        ? 'bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-950/40 dark:border-slate-800'
-                        : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800 hover:border-brand-500 hover:shadow-sm'
-                    }`}
-                  >
-                    <div>
-                      <h4 className={`font-bold ${isDone ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
-                        {secName}
-                      </h4>
-                      <p className="text-2xs text-slate-400">{questionCount} questions • {isScribe ? 20 : 15} minutes</p>
-                    </div>
-
-                    {isDone ? (
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1 rounded-xl">
-                        ✓ Submitted
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleStartSection(secName)}
-                        className="inline-flex items-center gap-1 bg-brand-500 hover:bg-brand-600 active:scale-[0.98] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-500/10"
-                      >
-                        <Play size={12} fill="white" />
-                        Start Section
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800/80 pt-4">
-            <span className="text-xs text-slate-400">Total subjects completed: {completedSections.length} of 4</span>
-            <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to end the exam early? All uncompleted sections will be skipped.')) {
-                  handleSubmitQuiz();
-                }
-              }}
-              className="text-xs font-bold text-red-500 hover:underline"
-            >
-              Submit Entire Exam Early
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Break Timeout Auto-selection
   const handleBreakTimeout = () => {
     const uncompleted = sectionsList.filter(name => !completedSections.includes(name));
     if (uncompleted.length > 0) {
-      alert(`Break time expired! System is automatically starting: ${uncompleted[0]}`);
+      showToast(`Break time expired! System is automatically starting: ${uncompleted[0]}`, 'info');
       handleStartSection(uncompleted[0]);
     }
   };
 
-  const questions = quiz.questions;
+  const questions = quiz ? quiz.questions : [];
   const currentQ = questions[activeIdx];
 
   // Active section questions list
   const sectionQuestions = questions.filter(q => q.section === activeSectionName);
-  const currentQIndexInSection = sectionQuestions.findIndex(q => q.questionNumber === currentQ.questionNumber);
+  const currentQIndexInSection = currentQ ? sectionQuestions.findIndex(q => q.questionNumber === currentQ.questionNumber) : -1;
 
   // Helper to format remaining time
   const formatSectionTime = (seconds) => {
@@ -416,7 +254,7 @@ const ExamInterface = () => {
   };
 
   const handleSectionTimeout = () => {
-    alert(`Time limit reached for ${activeSectionName}! Saving and closing section.`);
+    showToast(`Time limit reached for ${activeSectionName}! Saving and closing section.`, 'info');
     submitActiveSection();
   };
 
@@ -427,7 +265,7 @@ const ExamInterface = () => {
 
   const handleSaveAndNext = () => {
     if (!selectedOption) {
-      alert('Please select an option first. To skip, use next or skip.');
+      showToast('Please select an option first. To skip, use next or skip.', 'error');
       return;
     }
 
@@ -535,7 +373,7 @@ const ExamInterface = () => {
       navigate(`/result/${attemptData._id}`);
     } catch (err) {
       console.error(err);
-      alert('Failed to submit attempt.');
+      showToast('Failed to submit attempt.', 'error');
       setSubmitting(false);
     }
   };
@@ -554,6 +392,229 @@ const ExamInterface = () => {
     },
     { 'not-visited': 0, 'visited': 0, 'answered': 0, 'marked': 0, 'answered-marked': 0 }
   );
+
+  if (loading || !quiz) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+        <div className="text-center space-y-3">
+          <Loader className="animate-spin text-brand-400 mx-auto" size={36} />
+          <p className="text-sm font-semibold">Configuring CBT Console...</p>
+        </div>
+
+        {/* Render Toast notification if active */}
+        {toast && (
+          <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 ${
+              toast.type === 'error' 
+                ? 'bg-red-50/95 border-red-200 text-red-800' 
+                : toast.type === 'success'
+                ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+                : 'bg-indigo-50/95 border-indigo-200 text-indigo-800'
+            }`}>
+              {toast.type === 'error' && <AlertTriangle size={18} className="shrink-0 text-red-500" />}
+              {toast.type === 'success' && <CheckCircle size={18} className="shrink-0 text-emerald-500" />}
+              {toast.type === 'info' && <Clock size={18} className="shrink-0 text-indigo-500" />}
+              <span className="text-xs font-bold">{toast.message}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 1. Pre-exam profile choice screen
+  if (!examStarted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 transition-colors duration-200">
+        <div className="absolute top-1/4 left-1/4 h-[300px] w-[300px] rounded-full bg-brand-500/10 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 h-[350px] w-[350px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+
+        <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-slate-200/50 dark:bg-slate-900 dark:border-slate-800/50">
+          <div className="text-center mb-6">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/20">
+              <Accessibility size={28} />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">CGL CBT Examination Settings</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Select your profile category to configure exam timers</p>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 mb-6 text-xs text-slate-600 dark:text-slate-400 space-y-3">
+            <h3 className="font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">⏳ Timing & Sectional Rules</h3>
+            <ul className="list-disc pl-5 space-y-1.5 leading-relaxed font-medium">
+              <li><strong>Pick Any Section</strong>: You can start with any section of your choice.</li>
+              <li><strong>Sectional Timer</strong>: Once you start a section, you must finish it (15 mins Regular / 20 mins Scribe) before you can start another. You cannot go back to submitted sections.</li>
+              <li><strong>5-Minute Break</strong>: There is a maximum break of 5 minutes between sections. You can skip the break early by starting your next section of choice.</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <button
+              onClick={() => handleStartExam(false)}
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/20 hover:scale-[1.01] transition-all text-center space-y-2 group"
+            >
+              <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-brand-500">Regular Candidate</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">15 minutes per section</p>
+              <span className="text-2xs font-extrabold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-700">
+                Total: 60 mins (Excl. Breaks)
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleStartExam(true)}
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500 hover:bg-brand-50/20 hover:scale-[1.01] transition-all text-center space-y-2 group"
+            >
+              <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-brand-500">Scribe Candidate</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">20 minutes per section (PwD)</p>
+              <span className="text-2xs font-extrabold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 group-hover:bg-brand-100 group-hover:text-brand-700">
+                Total: 80 mins (Excl. Breaks)
+              </span>
+            </button>
+          </div>
+
+          <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800/80 pt-4">
+            <span className="text-xs text-slate-400">Quiz: {quiz.quizName}</span>
+            <button
+              onClick={() => navigate('/quizzes')}
+              className="text-xs font-semibold text-slate-500 hover:underline"
+            >
+              Cancel and Return
+            </button>
+          </div>
+        </div>
+
+        {/* Render Toast notification if active */}
+        {toast && (
+          <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 ${
+              toast.type === 'error' 
+                ? 'bg-red-50/95 border-red-200 text-red-800' 
+                : toast.type === 'success'
+                ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+                : 'bg-indigo-50/95 border-indigo-200 text-indigo-800'
+            }`}>
+              {toast.type === 'error' && <AlertTriangle size={18} className="shrink-0 text-red-500" />}
+              {toast.type === 'success' && <CheckCircle size={18} className="shrink-0 text-emerald-500" />}
+              {toast.type === 'info' && <Clock size={18} className="shrink-0 text-indigo-500" />}
+              <span className="text-xs font-bold">{toast.message}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 2. Section selection / Break state screen
+  if (examStarted && !activeSectionName) {
+    const uncompleted = sectionsList.filter(name => !completedSections.includes(name));
+    
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 transition-colors duration-200">
+        <div className="absolute top-1/4 left-1/4 h-[300px] w-[300px] rounded-full bg-brand-500/10 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 h-[350px] w-[350px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+
+        <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-xl border border-slate-200/50 dark:bg-slate-900 dark:border-slate-800/50">
+          <div className="text-center mb-6">
+            {completedSections.length > 0 ? (
+              <>
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+                  <Coffee size={28} />
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transition Break</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Section completed. Take a break or select your next subject.
+                </p>
+                <div className="mt-3 inline-flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/20 px-4 py-2 border border-yellow-100 dark:border-yellow-900/30 rounded-xl text-yellow-600 dark:text-yellow-400 font-mono font-bold text-sm">
+                  <span>Break Time Left: {formatTime(breakTimeLeft)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/20">
+                  <Play size={28} fill="white" className="ml-1" />
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Begin Mock Test</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Select whichever subject you want to attempt first</p>
+              </>
+            )}
+          </div>
+
+          {/* Section selections */}
+          <div className="space-y-3 mb-6">
+            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Subject Selection</h3>
+            <div className="grid grid-cols-1 gap-3">
+              {sectionsList.map((secName) => {
+                const isDone = completedSections.includes(secName);
+                const questionCount = quiz.questions.filter(q => q.section === secName).length;
+                if (questionCount === 0) return null;
+
+                return (
+                  <div
+                    key={secName}
+                    className={`flex items-center justify-between border rounded-2xl p-4 transition-all ${
+                      isDone
+                        ? 'bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-950/40 dark:border-slate-800'
+                        : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800 hover:border-brand-500 hover:shadow-sm'
+                    }`}
+                  >
+                    <div>
+                      <h4 className={`font-bold ${isDone ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                        {secName}
+                      </h4>
+                      <p className="text-2xs text-slate-400">{questionCount} questions • {isScribe ? 20 : 15} minutes</p>
+                    </div>
+
+                    {isDone ? (
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1 rounded-xl">
+                        ✓ Submitted
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleStartSection(secName)}
+                        className="inline-flex items-center gap-1 bg-brand-500 hover:bg-brand-600 active:scale-[0.98] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-500/10"
+                      >
+                        <Play size={12} fill="white" />
+                        Start Section
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800/80 pt-4">
+            <span className="text-xs text-slate-400">Total subjects completed: {completedSections.length} of 4</span>
+            <button
+              onClick={() => {
+                setShowSubmitModal(true);
+              }}
+              className="text-xs font-bold text-red-500 hover:underline"
+            >
+              Submit Entire Exam Early
+            </button>
+          </div>
+        </div>
+
+        {/* Render Toast notification if active */}
+        {toast && (
+          <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+            <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 ${
+              toast.type === 'error' 
+                ? 'bg-red-50/95 border-red-200 text-red-800' 
+                : toast.type === 'success'
+                ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+                : 'bg-indigo-50/95 border-indigo-200 text-indigo-800'
+            }`}>
+              {toast.type === 'error' && <AlertTriangle size={18} className="shrink-0 text-red-500" />}
+              {toast.type === 'success' && <CheckCircle size={18} className="shrink-0 text-emerald-500" />}
+              {toast.type === 'info' && <Clock size={18} className="shrink-0 text-indigo-500" />}
+              <span className="text-xs font-bold">{toast.message}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 text-slate-800 select-none overflow-hidden font-sans">
