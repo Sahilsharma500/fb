@@ -612,6 +612,39 @@ const ExamInterface = () => {
             </div>
           </div>
         )}
+
+        {/* Entire Exam Submit Modal */}
+        {showSubmitModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl border border-slate-200">
+              <div className="flex items-center gap-3 text-brand-500 mb-4">
+                <CheckCircle size={28} />
+                <h3 className="text-lg font-bold text-slate-900">Submit Entire Exam?</h3>
+              </div>
+              
+              <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+                Are you sure you want to submit the entire exam? Any unsubmitted sections will be saved with current progress and locked.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowSubmitModal(false)}
+                  disabled={submitting}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Back to Exam
+                </button>
+                <button
+                  onClick={handleSubmitQuiz}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition-all disabled:opacity-50"
+                >
+                  {submitting ? <Loader className="animate-spin" size={14} /> : 'Yes, Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
